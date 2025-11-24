@@ -14,8 +14,6 @@ RUN apk update && \
 
 WORKDIR /app
 
-ENV RAILS_ENV production
-
 COPY Gemfile Gemfile.lock ./
 
 RUN bundle install --jobs 4 --retry 3
