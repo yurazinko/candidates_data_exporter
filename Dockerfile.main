@@ -1,0 +1,30 @@
+FROM ruby:3.4.4-alpine
+
+RUN apk update && \
+    apk add --no-cache \
+    build-base \
+    git \
+    nodejs \
+    yarn \
+    tzdata \
+    yaml-dev \
+    libxml2-dev \
+    libxslt-dev && \
+    rm -rf /var/cache/apk/*
+
+WORKDIR /app
+
+ENV RAILS_ENV production
+
+COPY Gemfile Gemfile.lock ./
+
+RUN bundle install --jobs 4 --retry 3
+
+COPY package.json yarn.lock ./
+RUN yarn install --check-files
+
+COPY . .
+
+EXPOSE 3000
+
+CMD ["rails", "server", "-b", "0.0.0.0"]

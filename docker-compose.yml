@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.main
+    ports:
+      - "3000:3000"
+
+    volumes:
+      - .:/app
+      - bundle_cache:/usr/local/bundle
+      - /app/node_modules
+      - /app/public/assets
+
+    environment:
+      RAILS_ENV: development
+
+    stdin_open: true
+    tty: true
+
+volumes:
+  bundle_cache:
