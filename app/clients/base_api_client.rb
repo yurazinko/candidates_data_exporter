@@ -19,7 +19,7 @@ class BaseApiClient
         raise InvalidResponseError, { message: "API Error: Failed to fetch #{path}", status: raw_response.status }
       end
 
-      JSON.parse(raw_response.body).with_indifferent_access
+      JSON.parse(raw_response.body).deep_transform_keys(&:underscore).deep_symbolize_keys
     end
   end
 
@@ -30,6 +30,8 @@ class BaseApiClient
   def connection
     @connection ||= Faraday.new(url: base_url) do |f|
       f.request :retry, retry_options
+      f.options.timeout = 10
+      f.options.open_timeout = 5
     end
   end
 
