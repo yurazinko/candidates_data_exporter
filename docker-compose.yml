@@ -16,9 +16,6 @@ services:
       - .env
     environment:
       RAILS_ENV: development
-      TEAMTAILOR_API_BASE_URL:
-      TEAMTAILOR_API_SECRET:
-
     stdin_open: true
     tty: true
 
