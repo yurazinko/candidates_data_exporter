@@ -1,6 +1,22 @@
 class TeamtailorApiClient < BaseApiClient
+  ITEMS_PER_PAGE = 30
+
   def fetch_candidates_and_applications
-    perform_request(path: "job-applications?include=candidate", headers: headers)
+    all_data = { data: [], included: [] }
+
+    current_path = "job-applications?page[size]=#{ITEMS_PER_PAGE}&include=candidate"
+
+    while current_path
+      puts "Fetching: #{current_path}"
+      response = perform_request(path: current_path, headers: request_headers)
+
+      all_data[:data].concat(response[:data] || [])
+      all_data[:included].concat(response[:included] || [])
+
+      current_path = response.dig(:links, :next)
+    end
+
+    all_data
   end
 
   private
@@ -15,11 +31,19 @@ class TeamtailorApiClient < BaseApiClient
       ENV["TEAMTAILOR_API_KEY"] || Rails.application.credentials.teamtailor_api[:api_key]
   end
 
-  def headers
-    @headers ||= {
+  def request_headers
+    @request_headers ||= {
       "Authorization" => "Token token=#{api_key}",
       "X-Api-Version" => "20240404",
       "Content-Type" => "application/vnd.api+json"
     }
+  end
+
+  def default_retry_options
+    super.merge!({
+      retry_statuses: [ 429, 500, 502, 503, 504 ],
+      rate_limit_retry_header: "x-rate-limit-retry-after",
+      rate_limit_reset_header: "x-rate-limit-reset"
+    })
   end
 end

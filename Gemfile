@@ -35,6 +35,7 @@ gem "kamal", require: false
 gem "thruster", require: false
 
 gem "faraday"
+gem "faraday-retry"
 
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
@@ -51,6 +52,8 @@ group :development, :test do
 
   gem "rspec-rails", "~> 8.0.0"
   gem "webmock"
+
+  gem "pry-rails"
 end
 
 group :development do

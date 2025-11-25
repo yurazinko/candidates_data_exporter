@@ -14,39 +14,72 @@ RSpec.describe TeamtailorApiClient do
   end
 
   describe "#fetch_candidates_and_applications" do
-    let(:path) { "#{base_url}job-applications?include=candidate" }
+    let(:default_path) { "#{base_url}job-applications?page[size]=30&include=candidate" }
 
-    context "when API returns success response" do
+    context "with successful single-page response" do
       let(:response_body) do
         {
           data: [ { id: "1", type: "job-application" } ],
-          included: [ { id: "10", type: "candidate" } ]
+          included: [ { id: "10", type: "candidate" } ],
+          links: { next: nil }
         }.to_json
       end
 
       before do
-        stub_request(:get, path)
-          .with(
-            headers: {
-              "Authorization" => "Token token=#{api_key}",
-              "X-Api-Version" => "20240404",
-              "Content-Type" => "application/vnd.api+json"
-            }
-          )
+        stub_request(:get, default_path)
+          .with(headers: {
+            "Authorization"  => "Token token=#{api_key}",
+            "X-Api-Version"  => "20240404",
+            "Content-Type"   => "application/vnd.api+json"
+          })
           .to_return(status: 200, body: response_body)
       end
 
-      it "returns parsed JSON" do
+      it "returns merged data and included arrays" do
         result = client.fetch_candidates_and_applications
-        expect(result["data"].first["id"]).to eq("1")
-        expect(result["included"].first["id"]).to eq("10")
+
+        expect(result[:data].size).to eq(1)
+        expect(result[:included].size).to eq(1)
       end
     end
 
-    context "when API returns non-success status" do
+    context "with paginated responses" do
+      let(:first_body) do
+        {
+          data: [ { id: "1" } ],
+          included: [ { id: "10" } ],
+          links: { next: "job-applications?page[size]=30&page[number]=2&include=candidate" }
+        }.to_json
+      end
+
+      let(:second_body) do
+        {
+          data: [ { id: "2" } ],
+          included: [ { id: "11" } ],
+          links: { next: nil }
+        }.to_json
+      end
+
       before do
-        stub_request(:get, path)
-          .to_return(status: 500, body: { error: "fail" }.to_json)
+        stub_request(:get, default_path)
+          .to_return(status: 200, body: first_body)
+
+        stub_request(:get, "#{base_url}job-applications?page[size]=30&page[number]=2&include=candidate")
+          .to_return(status: 200, body: second_body)
+      end
+
+      it "fetches both pages and merges results" do
+        result = client.fetch_candidates_and_applications
+
+        expect(result[:data].map { |i| i[:id] }).to eq([ "1", "2" ])
+        expect(result[:included].map { |i| i[:id] }).to eq([ "10", "11" ])
+      end
+    end
+
+    context "when API returns a non-success status" do
+      before do
+        stub_request(:get, default_path)
+          .to_return(status: 500, body: "{}")
       end
 
       it "raises InvalidResponseError" do
@@ -56,21 +89,10 @@ RSpec.describe TeamtailorApiClient do
       end
     end
 
-    context "when network timeout occurs" do
+    context "when Faraday raises a network error" do
       before do
-        stub_request(:get, path).to_timeout
-      end
-
-      it "raises NetworkError" do
-        expect {
-          client.fetch_candidates_and_applications
-        }.to raise_error(BaseApiClient::NetworkError)
-      end
-    end
-
-    context "when connection fails" do
-      before do
-        stub_request(:get, path).to_raise(Faraday::ConnectionFailed.new("connection failed"))
+        stub_request(:get, default_path)
+          .to_raise(Faraday::TimeoutError)
       end
 
       it "raises NetworkError" do
@@ -82,7 +104,7 @@ RSpec.describe TeamtailorApiClient do
 
     context "when API returns invalid JSON" do
       before do
-        stub_request(:get, path)
+        stub_request(:get, default_path)
           .to_return(status: 200, body: "invalid-json")
       end
 
@@ -90,31 +112,6 @@ RSpec.describe TeamtailorApiClient do
         expect {
           client.fetch_candidates_and_applications
         }.to raise_error(BaseApiClient::ParseError)
-      end
-    end
-
-    context "when headers are correctly applied" do
-      before do
-        stub_request(:get, path)
-          .with(headers: {
-            "Authorization" => "Token token=#{api_key}",
-            "X-Api-Version" => "20240404",
-            "Content-Type" => "application/vnd.api+json"
-          })
-          .to_return(status: 200, body: "{}")
-      end
-
-      it "sends proper headers" do
-        client.fetch_candidates_and_applications
-        expect(
-          a_request(:get, path).with(
-            headers: {
-              "Authorization" => "Token token=#{api_key}",
-              "X-Api-Version" => "20240404",
-              "Content-Type" => "application/vnd.api+json"
-            }
-          )
-        ).to have_been_made
       end
     end
   end

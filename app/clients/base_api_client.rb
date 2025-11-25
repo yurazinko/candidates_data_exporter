@@ -3,6 +3,10 @@ class BaseApiClient
   class NetworkError < StandardError; end
   class ParseError < StandardError; end
 
+  def initialize
+    @retry_options = default_retry_options
+  end
+
   def perform_request(method: :get, path: "", params: {}, headers: {}, body: {})
     run_in_error_handler do
       @raw_response = connection.public_send(method, path) do |request|
@@ -12,28 +16,39 @@ class BaseApiClient
       end
 
       unless raw_response.success?
-        raise InvalidResponseError, "API Error with status #{raw_response.status}: Failed to fetch #{path}"
+        raise InvalidResponseError, { message: "API Error: Failed to fetch #{path}", status: raw_response.status }
       end
 
-      JSON.parse(raw_response.body)
+      JSON.parse(raw_response.body).with_indifferent_access
     end
   end
 
   private
 
-  attr_reader :raw_response
+  attr_reader :retry_options, :raw_response
 
   def connection
-    @connection ||= Faraday.new(url: base_url)
+    @connection ||= Faraday.new(url: base_url) do |f|
+      f.request :retry, retry_options
+    end
   end
 
   def run_in_error_handler
     yield
   rescue Faraday::TimeoutError, Faraday::ConnectionFailed, Faraday::SSLError => e
-    raise NetworkError, "Network failure: #{e.message}"
+    raise NetworkError, { message:  "Network failure: #{e.message}" }
   rescue Faraday::Error => e
-    raise NetworkError, "Faraday error: #{e.message}"
+    raise NetworkError, { message:  "Faraday error: #{e.message}" }
   rescue JSON::ParserError
-    raise ParseError, "Invalid JSON in API response body"
+    raise ParseError, { message:  "Invalid JSON in API response body" }
+  end
+
+  def default_retry_options
+    {
+      max: 5,
+      interval: 0.05,
+      interval_randomness: 0.5,
+      backoff_factor: 2
+    }
   end
 end
