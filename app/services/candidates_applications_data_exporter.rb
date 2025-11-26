@@ -1,4 +1,3 @@
-
 class CandidatesApplicationsDataExporter
   class ExportFailedError < StandardError; end
 
@@ -30,6 +29,8 @@ class CandidatesApplicationsDataExporter
       transformed_data,
       EXPORT_SCHEMA
     )
+
+    Rails.logger.info "Teamtailor candidate export finished!"
 
     Base64.strict_encode64(generated_file)
   rescue CsvGenerator::CsvGenerationError => e

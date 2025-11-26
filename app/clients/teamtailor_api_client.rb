@@ -1,22 +1,26 @@
 class TeamtailorApiClient < BaseApiClient
   ITEMS_PER_PAGE = 30
+  CACHE_KEY = "teamtailor/candidates_and_applications".freeze
+  CACHE_TTL = 1.hour
 
   def fetch_candidates_and_applications
-    all_data = { data: [], included: [] }
+    Rails.cache.fetch(CACHE_KEY, expires_in: CACHE_TTL) do
+      all_data = { data: [], included: [] }
 
-    current_path = "job-applications?page[size]=#{ITEMS_PER_PAGE}&include=candidate"
+      current_path = "job-applications?page[size]=#{ITEMS_PER_PAGE}&include=candidate"
 
-    while current_path
-      Rails.logger.info "Fetching: #{current_path}"
-      response = perform_request(path: current_path, headers: request_headers)
+      while current_path
+        Rails.logger.info "CACHE MISS: Fetching: #{current_path}"
+        response = perform_request(path: current_path, headers: request_headers)
 
-      all_data[:data].concat(response[:data] || [])
-      all_data[:included].concat(response[:included] || [])
+        all_data[:data].concat(response[:data] || [])
+        all_data[:included].concat(response[:included] || [])
 
-      current_path = response.dig(:links, :next)
+        current_path = response.dig(:links, :next)
+      end
+
+      all_data
     end
-
-    all_data
   end
 
   private

@@ -13,6 +13,10 @@ RSpec.describe TeamtailorApiClient do
     allow(ENV).to receive(:[]).with("TEAMTAILOR_API_KEY").and_return(api_key)
   end
 
+  after do
+    Rails.cache.clear
+  end
+
   describe "#fetch_candidates_and_applications" do
     let(:default_path) { "#{base_url}job-applications?page[size]=30&include=candidate" }
 
@@ -146,6 +150,64 @@ RSpec.describe TeamtailorApiClient do
         expect(WebMock).to have_requested(:get, default_path).twice
 
         expect(@result[:data].first[:id]).to eq("20")
+      end
+    end
+
+    context "with caching enabled" do
+      let(:cached_data) do
+        {
+          data: [ { id: "CACHED", type: "job-application" } ],
+          included: [ { id: "CACHED_INC", type: "candidate" } ],
+          links: { next: nil }
+        }.to_json
+      end
+
+      let(:fresh_data) do
+        {
+          data: [ { id: "FRESH", type: "job-application" } ],
+          included: [ { id: "FRESH_INC", type: "candidate" } ],
+          links: { next: nil }
+        }.to_json
+      end
+
+      before do
+        stub_request(:get, default_path)
+          .to_return(status: 200, body: cached_data)
+          .then
+          .to_return(status: 200, body: fresh_data)
+      end
+
+      it "fetches from API on first call (Cache Miss)" do
+        result = client.fetch_candidates_and_applications
+
+        expect(result[:data].first[:id]).to eq("CACHED")
+
+        expect(WebMock).to have_requested(:get, default_path).once
+      end
+
+      it "fetches from cache on subsequent calls (Cache Hit)" do
+        client.fetch_candidates_and_applications
+
+        WebMock.reset_executed_requests!
+
+        result = client.fetch_candidates_and_applications
+
+        expect(result[:data].first[:id]).to eq("CACHED")
+
+        expect(WebMock).not_to have_requested(:get, default_path)
+      end
+
+      it "fetches fresh data after cache expiration (simulated by manual clear)" do
+        client.fetch_candidates_and_applications
+
+        Rails.cache.clear
+        WebMock.reset_executed_requests!
+
+        result = client.fetch_candidates_and_applications
+
+        expect(result[:data].first[:id]).to eq("FRESH")
+
+        expect(WebMock).to have_requested(:get, default_path).once
       end
     end
   end
