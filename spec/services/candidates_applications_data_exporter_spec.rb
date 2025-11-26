@@ -1,5 +1,6 @@
 require "rails_helper"
 require "tempfile"
+require "base64"
 
 RSpec.describe CandidatesApplicationsDataExporter do
   let(:exporter_error) { CandidatesApplicationsDataExporter::ExportFailedError }
@@ -12,7 +13,12 @@ RSpec.describe CandidatesApplicationsDataExporter do
 
   let(:raw_data) { { "data" => [], "included" => [] } }
   let(:transformed_data) { [ { "candidate_id" => 1, "first_name" => "Test" } ] }
-  let(:output_path) { Rails.root.join("tmp", "test_export.csv") }
+
+  RAW_CSV_CONTENT =
+    "Candidate ID,First Name,Last Name,Email,Job Application ID,Job Application Created At\r\n1,Test,,,,, \r\n"
+
+  ENCODED_CSV_CONTENT = Base64.strict_encode64(RAW_CSV_CONTENT)
+
 
   subject(:exporter) { described_class.new }
 
@@ -32,32 +38,30 @@ RSpec.describe CandidatesApplicationsDataExporter do
   end
 
   context "when the export process is successful" do
-    let(:final_path) { "/tmp/final/file.csv" }
-
     before do
-      allow(csv_generator).to receive(:generate).and_return(final_path)
+      allow(csv_generator).to receive(:generate).and_return(RAW_CSV_CONTENT)
     end
 
     it "calls API client, transformer, and CSV generator in correct order" do
-      exporter.run_export(output_path)
+      exporter.run_export
 
       expect(api_client).to have_received(:fetch_candidates_and_applications).ordered
       expect(transformer).to have_received(:call).with(raw_data).ordered
+
       expect(csv_generator).to have_received(:generate).with(
         transformed_data,
         described_class::EXPORT_SCHEMA,
-        output_path
       ).ordered
     end
 
-    it "returns the file path returned by CsvGenerator" do
-      result = exporter.run_export(output_path)
-      expect(result).to eq(final_path)
+    it "returns the Base64 encoded CSV content" do
+      result = exporter.run_export
+      expect(result).to eq(ENCODED_CSV_CONTENT)
     end
   end
 
   context "when CsvGenerator fails" do
-    let(:csv_error_message) { "Permission denied to write file" }
+    let(:csv_error_message) { "Internal generation error" }
 
     before do
       allow(csv_generator).to receive(:generate).and_raise(
@@ -67,8 +71,8 @@ RSpec.describe CandidatesApplicationsDataExporter do
 
     it "raises ExportFailedError and includes the CSV error message" do
       expect {
-        exporter.run_export(output_path)
-      }.to raise_error(exporter_error, /Failed to export data to CSV: Permission denied to write file/)
+        exporter.run_export
+      }.to raise_error(exporter_error, /Failed to export data to CSV: Internal generation error/)
     end
 
     it "does not call CsvGenerator if API or transformer fails (implied by execution order)" do
@@ -78,7 +82,7 @@ RSpec.describe CandidatesApplicationsDataExporter do
       allow(api_client).to receive(:fetch_candidates_and_applications).and_raise(api_client_error, "API Error")
 
       expect {
-        exporter.run_export(output_path)
+        exporter.run_export
       }.to raise_error(api_client_error, "API Error")
 
       expect(csv_generator).not_to have_received(:generate)
@@ -97,7 +101,7 @@ RSpec.describe CandidatesApplicationsDataExporter do
       allow(api_client).to receive(:fetch_candidates_and_applications).and_raise(api_client_error)
 
       expect {
-        exporter.run_export(output_path)
+        exporter.run_export
       }.to raise_error(api_client_error)
     end
 
@@ -106,7 +110,7 @@ RSpec.describe CandidatesApplicationsDataExporter do
       allow(transformer).to receive(:call).and_raise(transformer_error)
 
       expect {
-        exporter.run_export(output_path)
+        exporter.run_export
       }.to raise_error(transformer_error)
     end
   end

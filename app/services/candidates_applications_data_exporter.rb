@@ -2,7 +2,6 @@
 class CandidatesApplicationsDataExporter
   class ExportFailedError < StandardError; end
 
-  FILE_OUTPUT_PATH = "#{Rails.root.join("tmp")}/#{Time.zone.now.to_s.parameterize}.csv".freeze
   EXPORT_SCHEMA = [
     { header: "Candidate ID",               field: :candidate_id },
     { header: "First Name",                 field: :first_name },
@@ -12,15 +11,15 @@ class CandidatesApplicationsDataExporter
     { header: "Job Application Created At", field: :job_application_created_at }
   ].freeze
 
-  def self.call(output_path = FILE_OUTPUT_PATH)
-    new.run_export(output_path)
+  def self.call
+    new.run_export
   end
 
   def initialize
     @api_client = TeamtailorApiClient.new
   end
 
-  def run_export(output_path)
+  def run_export
     Rails.logger.info "Starting Teamtailor candidate export..."
 
     raw_data = @api_client.fetch_candidates_and_applications
@@ -29,11 +28,10 @@ class CandidatesApplicationsDataExporter
 
     generated_file = CsvGenerator.generate(
       transformed_data,
-      EXPORT_SCHEMA,
-      output_path
+      EXPORT_SCHEMA
     )
 
-    generated_file
+    Base64.strict_encode64(generated_file)
   rescue CsvGenerator::CsvGenerationError => e
     raise ExportFailedError, { message: "Failed to export data to CSV: #{e.message}" }
   end

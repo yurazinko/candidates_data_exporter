@@ -1,12 +1,12 @@
 class CsvGenerator
   class CsvGenerationError < StandardError; end
 
-  MIN_SIZE_BYTES = 15
 
-  def self.generate(data, config_schema, file_path)
+  def self.generate(data, config_schema)
+    csv_string = StringIO.new
     headers = config_schema.map { |item| item[:header] }
 
-    CSV.open(file_path, "wb") do |csv|
+    CSV.open(csv_string, "w") do |csv|
       csv << headers
 
       data.each do |data_item|
@@ -18,14 +18,7 @@ class CsvGenerator
       end
     end
 
-    unless File.exist?(file_path) && File.size(file_path) > MIN_SIZE_BYTES
-      Rails.logger.error "CSV generation failed silently: File is missing or too small."
-
-      FileUtils.rm_f(file_path) if File.exist?(file_path)
-      raise CsvGenerationError, "File generation failed integrity check (empty or missing file)."
-    end
-
-    file_path
+    csv_string.string
   rescue StandardError => e
     Rails.logger.error "CSV generation failed: #{e.message}"
     raise CsvGenerationError, "Failed to generate CSV: #{e.message}"

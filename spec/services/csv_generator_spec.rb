@@ -1,10 +1,12 @@
 require "rails_helper"
-require "tempfile"
 require "csv"
+require "stringio"
 
 RSpec.describe CsvGenerator do
-  let(:temp_file) { Tempfile.new([ "test_export", ".csv" ]) }
-  let(:output_path) { temp_file.path }
+  before do
+    stub_const("CsvGenerator::CsvGenerationError", Class.new(StandardError))
+    allow(Rails.logger).to receive(:error)
+  end
 
   let(:config_schema) do
     [
@@ -17,77 +19,53 @@ RSpec.describe CsvGenerator do
   let(:test_data) do
     [
       { id: 1, name: "Alpha", value: 100 },
-      { id: 2, name: "Beta", value: 200 }
+      { id: 2, name: "Beta", value: 200 },
+      { id: 3, name: "Gamma", value: nil }
     ]
-  end
-
-  after do
-    temp_file.close
-    temp_file.unlink
   end
 
   describe ".generate" do
     context "when successful" do
-      it "returns the file path" do
-        result = described_class.generate(test_data, config_schema, output_path)
-        expect(result).to eq(output_path)
+      let(:expected_csv) do
+        "ID,Name,Value\n1,Alpha,100\n2,Beta,200\n3,Gamma,\n"
       end
 
-      it "writes the correct data and headers to the file" do
-        described_class.generate(test_data, config_schema, output_path)
+      it "returns the correct CSV content as a string" do
+        result = described_class.generate(test_data, config_schema)
+        expect(result).to eq(expected_csv)
+      end
 
-        contents = File.read(output_path)
-        expect(contents).to include("ID,Name,Value")
+      it "handles empty data gracefully" do
+        empty_data = []
+        expected_empty_csv = "ID,Name,Value\n"
 
-        expected_line1 = "1,Alpha,100"
-        expected_line2 = "2,Beta,200"
-        expect(contents).to include(expected_line1)
-        expect(contents).to include(expected_line2)
+        result = described_class.generate(empty_data, config_schema)
+        expect(result).to eq(expected_empty_csv)
+      end
+
+      it "handles nil values in data" do
+        result = described_class.generate(test_data, config_schema)
+        expect(result).to include("3,Gamma,\n")
       end
     end
 
-    context "when an IO error occurs during CSV generation" do
+    context "when a general error occurs during processing" do
       before do
-        allow(CSV).to receive(:open).and_raise(IOError, "Permission denied")
+        allow(config_schema).to receive(:map).and_raise(StandardError, "Schema processing failed")
       end
 
       it "raises a CsvGenerationError" do
         expect {
-          described_class.generate(test_data, config_schema, output_path)
-        }.to raise_error(CsvGenerator::CsvGenerationError, /Permission denied/)
+          described_class.generate(test_data, config_schema)
+        }.to raise_error(CsvGenerator::CsvGenerationError, /Failed to generate CSV: Schema processing failed/)
       end
 
       it "logs the underlying error" do
         expect {
-          described_class.generate(test_data, config_schema, output_path)
-        }.to raise_error
-      end
-    end
-
-    context "when file is generated but fails integrity check" do
-      let(:test_data_for_failure) { [] }
-
-      before do
-        File.open(output_path, 'r+') { |f| f.truncate(10) }
-
-        expect(File.exist?(output_path)).to be true
-        expect(File.size(output_path)).to be < CsvGenerator::MIN_SIZE_BYTES
-      end
-
-      it "raises a CsvGenerationError due to integrity failure" do
-        expect {
-          described_class.generate(test_data_for_failure, config_schema, output_path)
+          described_class.generate(test_data, config_schema)
         }.to raise_error(CsvGenerator::CsvGenerationError)
-      end
 
-      it "attempts to remove the corrupted file" do
-        allow(FileUtils).to receive(:rm_f).and_call_original
-
-        expect {
-          described_class.generate(test_data_for_failure, config_schema, output_path)
-        }.to raise_error
-
-        expect(FileUtils).to have_received(:rm_f).with(output_path)
+        expect(Rails.logger).to have_received(:error).with(/CSV generation failed: Schema processing failed/)
       end
     end
   end
