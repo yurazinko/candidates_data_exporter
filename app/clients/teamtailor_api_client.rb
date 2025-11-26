@@ -42,8 +42,8 @@ class TeamtailorApiClient < BaseApiClient
   def default_retry_options
     super.merge!({
       retry_statuses: [ 429, 500, 502, 503, 504 ],
-      rate_limit_retry_header: "x-rate-limit-retry-after",
-      rate_limit_reset_header: "x-rate-limit-reset"
+      rate_limit_reset_header: "x-rate-limit-reset",
+      header_parser_block: ->(value) { value.to_i }
     })
   end
 end

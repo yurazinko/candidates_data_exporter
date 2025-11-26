@@ -114,5 +114,39 @@ RSpec.describe TeamtailorApiClient do
         }.to raise_error(BaseApiClient::ParseError)
       end
     end
+
+    context "when API hits rate limit" do
+      let(:reset_time) { 2.5 }
+
+      let(:success_body) do
+        {
+          data: [ { id: "20" } ],
+          included: [],
+          links: { next: nil }
+        }.to_json
+      end
+
+      before do
+        stub_request(:get, default_path)
+          .to_return(
+            status: 429,
+            headers: { "x-rate-limit-reset" => reset_time.to_s },
+            body: "{}"
+          )
+          .then
+          .to_return(
+            status: 200,
+            body: success_body
+          )
+      end
+
+      it "activates the retry mechanism and successfully fetches data" do
+        expect { @result = client.fetch_candidates_and_applications }.not_to raise_error
+
+        expect(WebMock).to have_requested(:get, default_path).twice
+
+        expect(@result[:data].first[:id]).to eq("20")
+      end
+    end
   end
 end
