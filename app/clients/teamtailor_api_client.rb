@@ -7,7 +7,7 @@ class TeamtailorApiClient < BaseApiClient
     current_path = "job-applications?page[size]=#{ITEMS_PER_PAGE}&include=candidate"
 
     while current_path
-      puts "Fetching: #{current_path}"
+      Rails.logger.info "Fetching: #{current_path}"
       response = perform_request(path: current_path, headers: request_headers)
 
       all_data[:data].concat(response[:data] || [])

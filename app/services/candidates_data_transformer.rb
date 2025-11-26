@@ -22,7 +22,7 @@ class CandidatesDataTransformer
         email: candidate_attributes[:email],
 
         job_application_id: application[:id],
-        job_application_created_at: application.dig(:attributes, :created_at)
+        job_application_created_at: Time.parse(application.dig(:attributes, :created_at)).strftime("%d.%m.%Y %H:%M:%S")
       }
     end.compact
   end

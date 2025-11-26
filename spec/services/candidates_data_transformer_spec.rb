@@ -56,7 +56,7 @@ RSpec.describe CandidatesDataTransformer do
       expect(first_record[:email]).to eq("john.doe@example.com")
 
       expect(first_record[:job_application_id]).to eq("29305118")
-      expect(first_record[:job_application_created_at]).to eq("2022-03-22T15:59:12.658+01:00")
+      expect(first_record[:job_application_created_at]).to eq("22.03.2022 15:59:12")
     end
 
     it "handles empty input data gracefully" do
