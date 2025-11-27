@@ -1,13 +1,21 @@
 class TeamtailorApiClient < BaseApiClient
   ITEMS_PER_PAGE = 30
-  CACHE_KEY = "teamtailor/candidates_and_applications".freeze
   CACHE_TTL = 1.hour
+  APPLICATIONS_CACHE_KEY = "teamtailor/candidates_and_applications".freeze
+  APPLICATIONS_FIELDSET_PARAMS = {
+      "job-applications" => "created-at,candidate",
+      "candidates" => "first-name,last-name,email"
+  }.freeze
 
   def fetch_candidates_and_applications
-    Rails.cache.fetch(CACHE_KEY, expires_in: CACHE_TTL) do
+    Rails.cache.fetch(APPLICATIONS_CACHE_KEY, expires_in: CACHE_TTL) do
       all_data = { data: [], included: [] }
 
-      current_path = "job-applications?page[size]=#{ITEMS_PER_PAGE}&include=candidate"
+      params = "page[size]=#{ITEMS_PER_PAGE}&include=candidate"
+
+      APPLICATIONS_FIELDSET_PARAMS.each { |resource, attrs| params += "&fields[#{resource}]=#{attrs}" }
+
+      current_path = "job-applications?#{params}"
 
       while current_path
         Rails.logger.info "CACHE MISS: Fetching: #{current_path}"

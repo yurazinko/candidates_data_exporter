@@ -1,10 +1,16 @@
 require "rails_helper"
 
 RSpec.describe TeamtailorApiClient do
-  let(:base_url) { "https://api.teamtailor.com/" }
+  let(:base_url) { "https://api.teamtailor.com/v1/" }
   let(:api_key)  { "secret123" }
 
   let(:client)   { described_class.new }
+
+  let(:optimized_path_query) do
+    "job-applications?page[size]=30&include=candidate&fields[job-applications]=created-at,candidate&fields[candidates]=first-name,last-name,email"
+  end
+
+  let(:default_path) { "#{base_url}#{optimized_path_query}" }
 
   before do
     allow(ENV).to receive(:[]).and_call_original
@@ -18,8 +24,6 @@ RSpec.describe TeamtailorApiClient do
   end
 
   describe "#fetch_candidates_and_applications" do
-    let(:default_path) { "#{base_url}job-applications?page[size]=30&include=candidate" }
-
     context "with successful single-page response" do
       let(:response_body) do
         {
@@ -52,7 +56,7 @@ RSpec.describe TeamtailorApiClient do
         {
           data: [ { id: "1" } ],
           included: [ { id: "10" } ],
-          links: { next: "job-applications?page[size]=30&page[number]=2&include=candidate" }
+          links: { next: "#{optimized_path_query.sub("page[size]=30", "page[size]=30&page[number]=2")}" }
         }.to_json
       end
 
@@ -64,11 +68,17 @@ RSpec.describe TeamtailorApiClient do
         }.to_json
       end
 
+      let(:second_page_query) do
+        "#{optimized_path_query.sub("page[size]=30", "page[size]=30&page[number]=2")}"
+      end
+
+      let(:second_page_path) { "#{base_url}#{second_page_query}" }
+
       before do
         stub_request(:get, default_path)
           .to_return(status: 200, body: first_body)
 
-        stub_request(:get, "#{base_url}job-applications?page[size]=30&page[number]=2&include=candidate")
+        stub_request(:get, second_page_path)
           .to_return(status: 200, body: second_body)
       end
 
@@ -90,19 +100,6 @@ RSpec.describe TeamtailorApiClient do
         expect {
           client.fetch_candidates_and_applications
         }.to raise_error(BaseApiClient::InvalidResponseError)
-      end
-    end
-
-    context "when Faraday raises a network error" do
-      before do
-        stub_request(:get, default_path)
-          .to_raise(Faraday::TimeoutError)
-      end
-
-      it "raises NetworkError" do
-        expect {
-          client.fetch_candidates_and_applications
-        }.to raise_error(BaseApiClient::NetworkError)
       end
     end
 

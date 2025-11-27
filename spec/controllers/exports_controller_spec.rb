@@ -40,7 +40,9 @@ RSpec.describe ExportsController, type: :controller do
 
   let(:api_client) { TeamtailorApiClient.new }
 
-  let(:teamtailor_api_url) { 'https://api.teamtailor.com/v1/job-applications?page[size]=30&include=candidate' }
+  let(:teamtailor_api_url) do
+    "https://api.teamtailor.com/v1/job-applications?fields%5Bcandidates%5D=first-name,last-name,email&fields%5Bjob-applications%5D=created-at,candidate&include=candidate&page%5Bsize%5D=30"
+  end
 
   before do
     allow(Rails.logger).to receive(:fatal)
