@@ -2,6 +2,9 @@ require 'rails_helper'
 require 'base64'
 
 RSpec.describe ExportsController, type: :controller do
+  let(:base_url) { "https://api.teamtailor.com/v1/" }
+  let(:api_key)  { "secret123" }
+
   let(:raw_api_data) do
     {
       "data" => [
@@ -45,6 +48,11 @@ RSpec.describe ExportsController, type: :controller do
   end
 
   before do
+    allow(ENV).to receive(:[]).and_call_original
+
+    allow(ENV).to receive(:[]).with("TEAMTAILOR_API_BASE_URL").and_return(base_url)
+    allow(ENV).to receive(:[]).with("TEAMTAILOR_API_KEY").and_return(api_key)
+
     allow(Rails.logger).to receive(:fatal)
     allow(Rails.logger).to receive(:error)
     allow(Rails.logger).to receive(:info)
