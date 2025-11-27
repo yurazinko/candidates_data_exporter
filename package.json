@@ -1,18 +1,24 @@
 {
   "name": "app",
   "private": true,
-  "devDependencies": {
-    "esbuild": "^0.27.0"
-  },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
     "@hotwired/stimulus": "^3.2.2",
     "@hotwired/turbo-rails": "^8.0.20",
+    "@mui/material": "^7.3.5",
     "@tailwindcss/cli": "^4.1.17",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
+    "axios": "^1.13.2",
+    "esbuild": "^0.27.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "tailwindcss": "^4.1.17",
     "typescript": "^5.9.3"
+  },
+  "scripts": {
+    "build": "esbuild app/javascript/src/*.* --bundle --sourcemap --format=esm --outdir=app/assets/builds --public-path=/assets",
+    "build:watch": "esbuild app/javascript/src/*.* --bundle --outdir=app/assets/builds --watch"
   }
 }

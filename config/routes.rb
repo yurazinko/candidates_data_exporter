@@ -11,5 +11,6 @@ Rails.application.routes.draw do
 
   # Defines the root path route ("/")
   # root "posts#index"
+  root "frontend#index"
   resources :exports, only: [ :create ]
 end

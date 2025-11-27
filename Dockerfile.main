@@ -9,17 +9,15 @@ RUN apk update && \
     tzdata \
     yaml-dev \
     libxml2-dev \
-    libxslt-dev && \
-    rm -rf /var/cache/apk/*
+    libxslt-dev
 
 WORKDIR /app
 
 COPY Gemfile Gemfile.lock ./
-
 RUN bundle install --jobs 4 --retry 3
 
 COPY package.json yarn.lock ./
-RUN yarn install --check-files
+RUN yarn install --frozen-lockfile
 
 COPY . .
 
