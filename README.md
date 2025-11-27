@@ -31,7 +31,7 @@ Start Rails application server:
 docker-compose up
 ```
 
-The App will be available under this URL http://localhost:3000
+The App will be available under this URL: http://localhost:3000
 
 ## 2. Connecting to the Rails console
 

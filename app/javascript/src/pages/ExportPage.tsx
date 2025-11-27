@@ -81,15 +81,17 @@ const ExportPage: React.FC = () => {
         </Typography>
       </Typography>
 
-      {isProcessing && (
-        <Box sx={{ display: 'flex', alignItems: 'center', mt: 2, color: 'primary.main' }}>
-          <CircularProgress size={24} sx={{ mr: 2 }} />
-          <Typography variant="body1">
-            Generation in progress...
-          </Typography>
-        </Box>
-      )}
 
+        <Box sx={{ display: 'flex', height: 12, alignItems: 'center', mt: 2, color: 'primary.main' }}>
+        {isProcessing && (
+            <>
+              <CircularProgress size={12} sx={{ mr: 2 }} />
+              <Typography variant="body1">
+                Generation in progress...
+              </Typography>
+            </>
+          )}
+        </Box>
       <Button
         variant="contained"
         onClick={handleExport}
